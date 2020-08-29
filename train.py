@@ -15,7 +15,7 @@ EPS = 1e-8
 def get_reward(generated_sentences, original_sentences):
   rouge = Rouge()
   scores = rouge.get_scores(generated_sentences, original_sentences)
-  rouge_l_scores = [score['rouge-l']['f']+score['rouge-1']['f']+score['rouge-2']['f'] for score in scores]
+  rouge_l_scores = [score['rouge-l']['f'] + score['rouge-1']['f'] + score['rouge-2']['f'] for score in scores]
   rouge_l_scores = torch.Tensor(rouge_l_scores)
   rouge_l_scores = use_cuda(rouge_l_scores)
 
@@ -248,10 +248,12 @@ class Summarization(object):
     _ = self.load_weights(load_path)
     self.model.eval()
  
-    batch_size = 64
-
     eval_dataset = Summarizer(*data)
-    eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=self.batch_size,
+    if len(eval_df) >= self.batch_size:
+      eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=self.batch_size,
+                                 collate_fn=Summarizer.collate_fn)
+    else:
+      eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=len(eval_df),
                                  collate_fn=Summarizer.collate_fn)
     rouge  = Rouge()
     decoded_sentences = []
@@ -308,8 +310,9 @@ class Summarization(object):
       for ab, t, pred_t in zip(eval_abstracts, eval_titles, decoded_sentences):
         print('Abstract: ')
         pprint(ab)
-        print('Gold Title: ')
-        pprint(t)
+        if evaluation == 'val':
+          print('Gold Title: ')
+          pprint(t)
         print('Generated title: ')
         pprint(pred_t)
         print("************************************************")

@@ -29,7 +29,7 @@ def read_data(abstract_path, title_path):
   df = pd.DataFrame({'abstract': abstracts, 'title': titles})
   return df
 
-def split_data(df, split=0.05):
+def split_data(df, split=0.1):
   """
   :param df: original dataframe containing data
   :param split: split in fraction for both val and test
@@ -38,10 +38,8 @@ def split_data(df, split=0.05):
   np.random.seed(101)
   val_df = df.sample(frac=split, random_state=101)
   train_df = df.drop(val_df.index)
-  test_df = train_df.sample(frac=split, random_state=103)
-  train_df = train_df.drop(test_df.index)
 
-  return train_df, val_df, test_df
+  return train_df, val_df
 
 def get_vocab(train_df, size=50000):
     """
@@ -156,6 +154,40 @@ def prepare_input_data(data, word2idx):
     source_oovs.append(source_oov)
 
   return encoder_inps, encoder_ext_vocabs, decoder_inps, decoder_targets, source_oovs, target_sentences
+
+def prepare_test_data(csv, word2idx):
+  """
+  :param csv: csv file containing abstracts with column name 'abstract'
+  :param word2idx: dict mapping word to int
+  :returns: encoder_inps: source words converted to ints
+            encoder_ext_vocabs: source words converted to ints and special ints for OOV words (extended vocab)
+            decoder_inps: target words converted to ints
+            decoder_targets: shifted target words converted to ints and special ints for source OOV words
+            source_oovs: list of source OOV words
+            target_sentences: original target titles
+  """
+  df = pd.read_csv(csv)
+  abstracts = df['abstract'].values
+  encoder_inps = []
+  encoder_ext_vocabs = []
+  decoder_inps = []
+  source_oovs = []
+  for row in abstracts:
+    ab = row
+    abs = str(ab).lower().replace('\n', ' ').split()
+    encoder_inp = [word2idx.get(w, 1) for w in abs]
+    encoder_ext_vocab, source_oov = source2id(abs, word2idx)
+
+    encoder_inps.append(encoder_inp)
+    encoder_ext_vocabs.append(encoder_ext_vocab)
+    source_oovs.append(source_oov)
+
+  # make dummy inputs, targets and target sentences
+  decoder_inps = [[0]]*len(df)
+  decoder_targets = decoder_inps
+  target_sentences = list(abstracts)
+
+  return df, (encoder_inps, encoder_ext_vocabs, decoder_inps, decoder_targets, source_oovs, target_sentences)
 
 def ids2target(ids, source_oovs, idx2word):
   """
